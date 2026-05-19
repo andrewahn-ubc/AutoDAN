@@ -7,9 +7,7 @@ import openai
 from tqdm import tqdm
 import re
 import nltk
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
+nltk.data.path.append("/scratch/taegyoem/nltk_data")
 from nltk.corpus import stopwords, wordnet
 from collections import defaultdict, OrderedDict
 from utils.string_utils import autodan_SuffixManager
@@ -60,6 +58,9 @@ def load_model_and_tokenizer(model_path, tokenizer_path=None, device='cuda:0', *
         tokenizer.unk_token_id = 0
     if 'llama-2' in tokenizer_path:
         tokenizer.pad_token = tokenizer.unk_token
+        tokenizer.padding_side = 'left'
+    if 'llama-3' in tokenizer_path.lower() or 'llama_3' in tokenizer_path.lower():
+        tokenizer.pad_token = tokenizer.unk_token if tokenizer.unk_token is not None else tokenizer.eos_token
         tokenizer.padding_side = 'left'
     if 'falcon' in tokenizer_path:
         tokenizer.padding_side = 'left'
@@ -233,7 +234,7 @@ def apply_init_gpt_mutation(offspring, mutation_rate=0.01, API_key=None, if_api=
 
 
 def replace_with_synonyms(sentence, num=10):
-    T = {"llama2", "meta", "vicuna", "lmsys", "guanaco", "theblokeai", "wizardlm", "mpt-chat",
+    T = {"llama3", "llama-3", "llama2", "meta", "vicuna", "lmsys", "guanaco", "theblokeai", "wizardlm", "mpt-chat",
          "mosaicml", "mpt-instruct", "falcon", "tii", "chatgpt", "modelkeeper", "prompt"}
     stop_words = set(stopwords.words('english'))
     words = nltk.word_tokenize(sentence)
@@ -281,7 +282,7 @@ def autodan_sample_control_hga(word_dict, control_suffixs, score_list, num_elite
     return next_generation, word_dict
 
 def construct_momentum_word_dict(word_dict, control_suffixs, score_list, topk=-1):
-    T = {"llama2", "meta", "vicuna", "lmsys", "guanaco", "theblokeai", "wizardlm", "mpt-chat",
+    T = {"llama3", "llama-3", "llama2", "meta", "vicuna", "lmsys", "guanaco", "theblokeai", "wizardlm", "mpt-chat",
          "mosaicml", "mpt-instruct", "falcon", "tii", "chatgpt", "modelkeeper", "prompt"}
     stop_words = set(stopwords.words('english'))
     if len(control_suffixs) != len(score_list):
@@ -336,7 +337,7 @@ def word_roulette_wheel_selection(word, word_scores):
 
 def replace_with_best_synonym(sentence, word_dict, crossover_probability):
     stop_words = set(stopwords.words('english'))
-    T = {"llama2", "meta", "vicuna", "lmsys", "guanaco", "theblokeai", "wizardlm", "mpt-chat",
+    T = {"llama3", "llama-3", "llama2", "meta", "vicuna", "lmsys", "guanaco", "theblokeai", "wizardlm", "mpt-chat",
          "mosaicml", "mpt-instruct", "falcon", "tii", "chatgpt", "modelkeeper", "prompt"}
     paragraphs = sentence.split('\n\n')
     modified_paragraphs = []

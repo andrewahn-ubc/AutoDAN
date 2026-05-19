@@ -1,10 +1,23 @@
 import torch
 from fastchat import model
+from fastchat.conversation import get_conv_template
+
+from utils.llama3_conv import ensure_llama3_conv_template
+
 
 def load_conversation_template(template_name):
     if template_name == 'llama2':
         template_name = 'llama-2'
-    conv_template = model.get_conversation_template(template_name)
+    if template_name == 'llama3':
+        template_name = 'llama-3'
+
+    # PyPI fschat<=0.2.36 has no "llama-3" entry; model.get_conversation_template("llama-3")
+    # incorrectly falls back to one_shot. Prefer the real template when missing.
+    if template_name == 'llama-3':
+        ensure_llama3_conv_template()
+        conv_template = get_conv_template('llama-3')
+    else:
+        conv_template = model.get_conversation_template(template_name)
     if conv_template.name == 'zero_shot':
         conv_template.roles = tuple(['### ' + r for r in conv_template.roles])
         conv_template.sep = '\n'
@@ -34,7 +47,7 @@ class autodan_SuffixManager:
         encoding = self.tokenizer(prompt)
         toks = encoding.input_ids
 
-        if self.conv_template.name == 'llama-2':
+        if self.conv_template.name in ('llama-2', 'llama-3'):
             self.conv_template.messages = []
 
             self.conv_template.append_message(self.conv_template.roles[0], None)

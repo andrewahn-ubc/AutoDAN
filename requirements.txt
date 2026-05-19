@@ -1,10 +1,15 @@
-fschat==0.2.20
+# 0.2.20 pins transformers<4.29 (incompatible with Llama 3 / GQA). 0.2.36 does not;
+# we register llama-3 in utils/llama3_conv.py when missing from stock FastChat.
+fschat>=0.2.36
 nltk==3.8.1
-numpy==1.26.0
+numpy>=1.26,<1.27
 openai==0.28.1
-torch==2.0.1
+torch>=2.1,<2.2
 tqdm==4.66.1
-transformers==4.28.0
+# Llama 3 uses GQA (num_key_value_heads < num_attention_heads). Older
+# transformers (e.g. 4.28) builds wrong k/v shapes and fails loading with
+# e.g. "Trying to set a tensor of shape [1024, 4096] ... [4096, 4096]".
+transformers>=4.40.0,<6
 sentencepiece==0.1.99
 protobuf==4.24.4
-accelerate==0.23.0
+accelerate>=0.27.0

@@ -39,6 +39,8 @@ conda activate AutoDAN
 pip install -r requirements.txt
 ```
 
+If you load **Meta Llama 3** checkpoints, use **`transformers>=4.40`** (as in `requirements.txt`). Older versions instantiate the wrong attention layout (full multi-head K/V instead of grouped-query), which triggers a weight shape mismatch such as `[1024, 4096]` vs `[4096, 4096]` when loading shards. Also use **`fschat>=0.2.36`**: older `fschat==0.2.20` declares `transformers<4.29`, which conflicts with that requirement (pip will warn or force a downgrade). This repo registers a **`llama-3`** chat template when the installed FastChat build does not include it.
+
 - **Download LLMs**
 *(You can modify this file to download other models from huggingface)*
 ```shell

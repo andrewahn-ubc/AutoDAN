@@ -12,7 +12,9 @@ import pandas as pd
 import json
 from tqdm import tqdm
 import random
+import time
 
+start_time = time.time()
 seed = 20
 torch.manual_seed(seed)
 np.random.seed(seed)
@@ -72,7 +74,7 @@ def get_args():
     parser.add_argument("--mutation", type=float, default=0.01)
     parser.add_argument("--init_prompt_path", type=str, default="./assets/autodan_initial_prompt.txt")
     parser.add_argument("--dataset_path", type=str, default="./data/advbench/harmful_behaviors.csv")
-    parser.add_argument("--model", type=str, default="llama2")
+    parser.add_argument("--model", type=str, default="llama3")
     parser.add_argument("--save_suffix", type=str, default="normal")
     parser.add_argument("--API_key", type=str, default=None)
 
@@ -81,7 +83,7 @@ def get_args():
 
 
 def get_developer(model_name):
-    developer_dict = {"llama2": "Meta", "vicuna": "LMSYS",
+    developer_dict = {"llama3": "Meta", "llama2": "Meta", "vicuna": "LMSYS",
                       "guanaco": "TheBlokeAI", "WizardLM": "WizardLM",
                       "mpt-chat": "MosaicML", "mpt-instruct": "MosaicML", "falcon": "TII"}
     return developer_dict[model_name]
@@ -91,7 +93,7 @@ if __name__ == '__main__':
     args = get_args()
     device = f'cuda:{args.device}'
 
-    model_path_dicts = {"llama2": "./models/llama2/llama-2-7b-chat-hf", "vicuna": "./models/vicuna/vicuna-7b-v1.3",
+    model_path_dicts = {"llama3": "/home/taegyoem/scratch/llama_3_8b_instruct", "llama2": "/home/taegyoem/scratch/llama2_7b_chat_hf", "vicuna": "./models/vicuna/vicuna-7b-v1.3",
                         "guanaco": "./models/guanaco/guanaco-7B-HF", "WizardLM": "./models/WizardLM/WizardLM-7B-V1.0",
                         "mpt-chat": "./models/mpt/mpt-7b-chat", "mpt-instruct": "./models/mpt/mpt-7b-instruct",
                         "falcon": "./models/falcon/falcon-7b-instruct"}
@@ -157,7 +159,12 @@ if __name__ == '__main__':
                                                 use_cache=False,
                                                 device=device)
     conv_template = load_conversation_template(template_name)
-
+    model_load_time = time.time()
+    runtime_in_s = model_load_time - start_time
+    minutes = (runtime_in_s / 60) % 60
+    seconds = runtime_in_s % 60
+    print(f"Time taken to load model: {str(minutes)} minutes, and {str(seconds)} seconds")
+    
     harmful_data = pd.read_csv(args.dataset_path)
     dataset = zip(harmful_data.goal[args.start:], harmful_data.target[args.start:])
     infos = {}
