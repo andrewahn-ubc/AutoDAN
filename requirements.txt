@@ -2,14 +2,18 @@
 # we register llama-3 in utils/llama3_conv.py when missing from stock FastChat.
 fschat>=0.2.36
 nltk==3.8.1
-numpy>=1.26,<1.27
+# NumPy 2.x breaks torch 2.1.x and common CC wheels (e.g. gradio 3.50); keep 1.x.
+numpy>=1.25,<2
 openai==0.28.1
 torch>=2.1,<2.2
 tqdm==4.66.1
 # Llama 3 uses GQA (num_key_value_heads < num_attention_heads). Older
 # transformers (e.g. 4.28) builds wrong k/v shapes and fails loading with
 # e.g. "Trying to set a tensor of shape [1024, 4096] ... [4096, 4096]".
-transformers>=4.40.0,<6
+# Cap at 5.x: transformers 5.8+ expects PyTorch >= 2.4; Compute Canada wheels
+# often ship torch 2.1.x, which triggers "Disabling PyTorch" and broken imports
+# (e.g. GenerationMixin from transformers.generation).
+transformers>=4.40.0,<5
 sentencepiece==0.1.99
 protobuf==4.24.4
 accelerate>=0.27.0

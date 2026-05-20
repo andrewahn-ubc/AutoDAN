@@ -39,7 +39,9 @@ conda activate AutoDAN
 pip install -r requirements.txt
 ```
 
-If you load **Meta Llama 3** checkpoints, use **`transformers>=4.40`** (as in `requirements.txt`). Older versions instantiate the wrong attention layout (full multi-head K/V instead of grouped-query), which triggers a weight shape mismatch such as `[1024, 4096]` vs `[4096, 4096]` when loading shards. Also use **`fschat>=0.2.36`**: older `fschat==0.2.20` declares `transformers<4.29`, which conflicts with that requirement (pip will warn or force a downgrade). This repo registers a **`llama-3`** chat template when the installed FastChat build does not include it.
+Use **`numpy>=1.25,<2`** with cluster **torch 2.1** wheels; otherwise pip can pull **NumPy 2.x** and you will see conflicts with `torch` and `gradio` (`numpy<2.0` required).
+
+If you load **Meta Llama 3** checkpoints, use **`transformers>=4.40,<5`** (as in `requirements.txt`). Older versions instantiate the wrong attention layout (full multi-head K/V instead of grouped-query), which triggers a weight shape mismatch such as `[1024, 4096]` vs `[4096, 4096]` when loading shards. **Transformers 5.8+** expects **PyTorch ≥ 2.4**; clusters such as Narval often provide **torch 2.1.x** (`+computecanada`), which makes recent `transformers` disable PyTorch and can break imports (for example `GenerationMixin` from `transformers.generation`). Stay on **transformers 4.x** unless you load a newer PyTorch module. Also use **`fschat>=0.2.36`**: older `fschat==0.2.20` declares `transformers<4.29`, which conflicts with that requirement (pip will warn or force a downgrade). This repo registers a **`llama-3`** chat template when the installed FastChat build does not include it.
 
 - **Download LLMs**
 *(You can modify this file to download other models from huggingface)*
