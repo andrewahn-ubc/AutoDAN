@@ -33,7 +33,7 @@ def generate(model, tokenizer, input_ids, assistant_role_slice, gen_config=None)
                                 generation_config=gen_config,
                                 pad_token_id=tokenizer.pad_token_id,
                                 top_p=0.9,
-                                do_sample=True,
+                                do_sample=False,
                                 temperature=0.7
                                 )[0]
     return output_ids[assistant_role_slice.stop:]
@@ -74,7 +74,7 @@ def get_args():
     parser.add_argument("--mutation", type=float, default=0.01)
     parser.add_argument("--init_prompt_path", type=str, default="./assets/autodan_initial_prompt.txt")
     parser.add_argument("--dataset_path", type=str, default="./data/advbench/harmful_behaviors.csv")
-    parser.add_argument("--model", type=str, default="llama3")
+    parser.add_argument("--model", type=str, default="llama2")
     parser.add_argument("--save_suffix", type=str, default="normal")
     parser.add_argument("--API_key", type=str, default=None)
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     args = get_args()
     device = f'cuda:{args.device}'
 
-    model_path_dicts = {"llama3": "/home/taegyoem/scratch/llama_3_8b_instruct", "llama2": "/home/taegyoem/scratch/llama2_7b_chat_hf", "vicuna": "./models/vicuna/vicuna-7b-v1.3",
+    model_path_dicts = {"llama3": "/home/taegyoem/scratch/llama_3_8b_instruct", "llama2": "/home/taegyoem/scratch/merged_run_lr2e-05_lam1_eps0.5_ep5", "vicuna": "./models/vicuna/vicuna-7b-v1.3",
                         "guanaco": "./models/guanaco/guanaco-7B-HF", "WizardLM": "./models/WizardLM/WizardLM-7B-V1.0",
                         "mpt-chat": "./models/mpt/mpt-7b-chat", "mpt-instruct": "./models/mpt/mpt-7b-instruct",
                         "falcon": "./models/falcon/falcon-7b-instruct"}
