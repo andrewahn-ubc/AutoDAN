@@ -11,6 +11,7 @@ nltk.data.path.append("/scratch/taegyoem/nltk_data")
 from nltk.corpus import stopwords, wordnet
 from collections import defaultdict, OrderedDict
 from utils.string_utils import autodan_SuffixManager
+from utils.model_utils import configure_llama_tokenizer, infer_chat_template_name, resolve_tokenizer_path
 import sys
 import time
 
@@ -34,35 +35,37 @@ def forward(*, model, input_ids, attention_mask, batch_size=512):
     return torch.cat(logits, dim=0)
 
 
-def load_model_and_tokenizer(model_path, tokenizer_path=None, device='cuda:0', **kwargs):
+def load_model_and_tokenizer(model_path, tokenizer_path=None, device='cuda:0',
+                             chat_template=None, base_tokenizer_path=None, **kwargs):
+    dtype = torch.float16 if str(device).startswith("cuda") else torch.float32
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
-        torch_dtype=torch.float32,
+        torch_dtype=dtype,
         trust_remote_code=True,
         **kwargs
     ).to(device).eval()
 
-    tokenizer_path = model_path if tokenizer_path is None else tokenizer_path
+    resolved_tokenizer_path = resolve_tokenizer_path(
+        model_path, tokenizer_path=tokenizer_path, base_tokenizer_path=base_tokenizer_path
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(
-        tokenizer_path,
+        resolved_tokenizer_path,
         trust_remote_code=True,
         use_fast=False
     )
 
-    if 'oasst-sft-6-llama-30b' in tokenizer_path:
+    template_hint = chat_template or infer_chat_template_name(model_path)
+
+    if 'oasst-sft-6-llama-30b' in resolved_tokenizer_path:
         tokenizer.bos_token_id = 1
         tokenizer.unk_token_id = 0
-    if 'guanaco' in tokenizer_path:
+    if 'guanaco' in resolved_tokenizer_path:
         tokenizer.eos_token_id = 2
         tokenizer.unk_token_id = 0
-    if 'llama-2' in tokenizer_path:
-        tokenizer.pad_token = tokenizer.unk_token
-        tokenizer.padding_side = 'left'
-    if 'llama-3' in tokenizer_path.lower() or 'llama_3' in tokenizer_path.lower():
-        tokenizer.pad_token = tokenizer.unk_token if tokenizer.unk_token is not None else tokenizer.eos_token
-        tokenizer.padding_side = 'left'
-    if 'falcon' in tokenizer_path:
+    if template_hint in ("llama2", "llama3"):
+        configure_llama_tokenizer(tokenizer, family=template_hint)
+    if 'falcon' in resolved_tokenizer_path:
         tokenizer.padding_side = 'left'
     if not tokenizer.pad_token:
         tokenizer.pad_token = tokenizer.eos_token
@@ -481,12 +484,18 @@ def get_score_autodan(tokenizer, conv_template, instruction, target, model, devi
             loss = -crit(logits_cal, dis).mean()
             losses.append(loss)
         else:
-            loss = crit(logits_slice, targets)
+            loss = crit(logits_slice.float(), targets)
             losses.append(loss)
 
     del input_ids_list, target_slices, input_ids_tensor, attn_mask
     gc.collect()
     losses = torch.stack(losses)
+    nan_mask = ~torch.isfinite(losses)
+    if nan_mask.any():
+        print(
+            f"[AutoDAN] Warning: {int(nan_mask.sum())}/{len(losses)} losses non-finite "
+            f"(NaN/Inf); check chat template matches checkpoint). Replacing with 1e4."
+        )
     losses = torch.nan_to_num(losses, nan=1e4, posinf=1e4, neginf=1e4)
     return losses
 
@@ -510,11 +519,17 @@ def get_score_autodan_low_memory(tokenizer, conv_template, instruction, target, 
         loss_slice = slice(target_slice.start - 1, target_slice.stop - 1)
         logits_slice = logits[0, loss_slice, :].unsqueeze(0).transpose(1, 2)
         targets = input_ids_tensor[0, target_slice].unsqueeze(0)
-        loss = crit(logits_slice, targets)
+            loss = crit(logits_slice.float(), targets)
         losses.append(loss)
 
     del input_ids_tensor
     gc.collect()
     losses = torch.stack(losses)
+    nan_mask = ~torch.isfinite(losses)
+    if nan_mask.any():
+        print(
+            f"[AutoDAN] Warning: {int(nan_mask.sum())}/{len(losses)} losses non-finite "
+            f"(NaN/Inf); check chat template matches checkpoint). Replacing with 1e4."
+        )
     losses = torch.nan_to_num(losses, nan=1e4, posinf=1e4, neginf=1e4)
     return losses
