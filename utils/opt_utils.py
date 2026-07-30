@@ -98,13 +98,30 @@ def autodan_sample_control(control_suffixs, score_list, num_elites, batch_size, 
 
 
 ### GA ###
-def roulette_wheel_selection(data_list, score_list, num_selected, if_softmax=True):
+def _prepare_selection_probs(score_list, if_softmax=True):
+    scores = np.asarray(score_list, dtype=np.float64)
+    finite_mask = np.isfinite(scores)
+    if not finite_mask.any():
+        return np.full(len(scores), 1.0 / len(scores))
+
+    worst_score = np.min(scores[finite_mask]) - 1.0
+    scores = np.where(finite_mask, scores, worst_score)
+
     if if_softmax:
-        selection_probs = np.exp(score_list - np.max(score_list))
-        selection_probs = selection_probs / selection_probs.sum()
+        scores = scores - np.max(scores)
+        selection_probs = np.exp(np.clip(scores, -700, 700))
     else:
-        total_score = sum(score_list)
-        selection_probs = [score / total_score for score in score_list]
+        scores = scores - np.min(scores)
+        selection_probs = scores
+
+    total = selection_probs.sum()
+    if total <= 0 or not np.isfinite(total):
+        return np.full(len(scores), 1.0 / len(scores))
+    return selection_probs / total
+
+
+def roulette_wheel_selection(data_list, score_list, num_selected, if_softmax=True):
+    selection_probs = _prepare_selection_probs(score_list, if_softmax=if_softmax)
 
     selected_indices = np.random.choice(len(data_list), size=num_selected, p=selection_probs, replace=True)
 
@@ -469,7 +486,9 @@ def get_score_autodan(tokenizer, conv_template, instruction, target, model, devi
 
     del input_ids_list, target_slices, input_ids_tensor, attn_mask
     gc.collect()
-    return torch.stack(losses)
+    losses = torch.stack(losses)
+    losses = torch.nan_to_num(losses, nan=1e4, posinf=1e4, neginf=1e4)
+    return losses
 
 
 def get_score_autodan_low_memory(tokenizer, conv_template, instruction, target, model, device, test_controls=None,
@@ -496,4 +515,6 @@ def get_score_autodan_low_memory(tokenizer, conv_template, instruction, target, 
 
     del input_ids_tensor
     gc.collect()
-    return torch.stack(losses)
+    losses = torch.stack(losses)
+    losses = torch.nan_to_num(losses, nan=1e4, posinf=1e4, neginf=1e4)
+    return losses
